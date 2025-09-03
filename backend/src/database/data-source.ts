@@ -4,6 +4,7 @@ import { Song } from '../song/song.entity';
 import { Movie } from '../movie/movie.entity';
 import { Scene } from '../scene/scene.entity';
 import { Track } from '../track/track.entity';
+import { TrackAIInsights } from '../track-ai-insights/track-ai-insights.entity';
 
 export const dataSourceOptions: PostgresConnectionOptions = {
   type: 'postgres',
@@ -12,7 +13,7 @@ export const dataSourceOptions: PostgresConnectionOptions = {
   username: process.env.DB_USER,
   password: process.env.DB_PASS,
   database: process.env.DB_NAME,
-  entities: [Song, Movie, Scene, Track],
+  entities: [Song, Movie, Scene, Track, TrackAIInsights],
   synchronize: true, // Auto-updates DB schema on app launch (DEV ONLY - disable in production and implement migrations instead!)
 };
 

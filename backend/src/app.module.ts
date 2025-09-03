@@ -10,6 +10,7 @@ import { SceneModule } from './scene/scene.module';
 import { MovieModule } from './movie/movie.module';
 import { dataSourceOptions } from './database/data-source';
 import { RealtimeModule } from './realtime/realtime.module';
+import { TrackAIInsightsModule } from './track-ai-insights/track-ai-insights.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { RealtimeModule } from './realtime/realtime.module';
     SceneModule,
     MovieModule,
     RealtimeModule,
+    TrackAIInsightsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
