@@ -16,7 +16,7 @@ export class TrackAIInsights extends BaseEntityTimestamps {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @OneToOne(() => Track, (track) => track.track_ai_insights, {
+  @OneToOne(() => Track, (track) => track.trackAIInsights, {
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'track_id' })

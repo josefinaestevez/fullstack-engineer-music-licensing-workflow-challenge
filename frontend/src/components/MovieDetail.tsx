@@ -174,6 +174,30 @@ export default function MovieDetail({ id }: { id: string }) {
                     <div className="text-xs text-gray-500">[{t.startTime}s → {t.endTime}s]</div>
                   </div>
 
+                  <div className="mt-1 max-w-[36rem] text-xs text-gray-700">
+
+                  {/* --- AI Insights --- */}
+                  <div className="mt-3 max-w-[36rem] space-y-2">
+                    {t.trackAIInsights ? (
+                      <>
+                        <h3 className="text-sm font-semibold text-gray-700">AI Insights</h3>
+                        
+                        <p className="text-sm text-gray-800 leading-relaxed">
+                          {t.trackAIInsights.summary}
+                        </p>
+
+                        {t.trackAIInsights.licenseSuggestion && (
+                          <p className="text-xs text-gray-600">
+                            💡 <span className="font-semibold">Suggestion:</span>{' '}
+                            {t.trackAIInsights.licenseSuggestion}
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-xs text-gray-400 italic">No AI insight yet.</p>
+                    )}
+                  </div>
+                </div>
                   <div className="flex items-center gap-2 shrink-0">
                     
                     {/* --- Status UI: only when there is a song --- */}

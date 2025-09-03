@@ -37,6 +37,7 @@ export class MovieResolver {
       .leftJoinAndSelect('m.scenes', 's')
       .leftJoinAndSelect('s.tracks', 't')
       .leftJoinAndSelect('t.song', 'song')
+      .leftJoinAndSelect('t.trackAIInsights', 'tai')
       .where('m.id = :id', { id })
       .orderBy('s.name', 'ASC')
       .addOrderBy('t.startTime', 'ASC')

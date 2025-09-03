@@ -16,6 +16,10 @@ export const GET_MOVIE = gql`
           endTime
           licenseStatus
           song { id title artist }
+          trackAIInsights {
+            summary
+            licenseSuggestion
+          }
         }
       }
     }

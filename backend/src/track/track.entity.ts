@@ -61,9 +61,7 @@ export class Track extends BaseEntityTimestamps {
   })
   licenseStatus!: LicenseStatus;
 
-  @OneToOne(
-    () => TrackAIInsights,
-    (track_ai_insights) => track_ai_insights.track,
-  )
-  track_ai_insights?: TrackAIInsights;
+  @Field(() => TrackAIInsights, { nullable: true })
+  @OneToOne(() => TrackAIInsights, (trackAIInsights) => trackAIInsights.track)
+  trackAIInsights?: TrackAIInsights;
 }

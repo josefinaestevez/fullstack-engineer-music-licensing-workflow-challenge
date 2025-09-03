@@ -12,7 +12,7 @@ export class TrackService {
       .innerJoinAndSelect('t.song', 'song')
       .innerJoinAndSelect('t.scene', 'scene')
       .innerJoinAndSelect('scene.movie', 'movie')
-      .leftJoin('t.track_ai_insights', 'ins')
+      .leftJoin('t.trackAIInsights', 'ins')
       .where('ins.id IS NULL')
       .orderBy('t.createdAt', 'ASC')
       .getMany();

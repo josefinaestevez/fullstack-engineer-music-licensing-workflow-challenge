@@ -7,12 +7,18 @@ export interface Song {
   durationSec?: number | null;
 }
 
+export type TrackAIInsights = {
+  summary: string;
+  licenseSuggestion?: string | null;
+};
+
 export interface Track {
   id: string;
   startTime: number;
   endTime: number;
   licenseStatus: LicenseStatus;
   song: Song | null;
+  trackAIInsights: TrackAIInsights | null;
 }
 
 export interface Scene {
