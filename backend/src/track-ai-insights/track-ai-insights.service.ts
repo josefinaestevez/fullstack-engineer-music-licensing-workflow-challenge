@@ -157,28 +157,34 @@ export class TrackAIInsightsService {
   private async callOpenAIForTrackInsights(
     context: TrackInsightsContext,
   ): Promise<TrackInsightsPayload> {
-    const system = `
-      You are a music licensing assistant. 
-      Return STRICT JSON only. 
-      Output must include: 
-      - trackId (string) 
-      - summary (<=255 chars) 
-      Include licenseSuggestion if you can reasonably infer a first step for licensing (e.g. type of contract, duration, channel). If not, omit it.
-      No extra text, no markdown.
+    const SYSTEM_PROMPT = `
+      You are a music licensing assistant.
+      Write outputs in English, concise and professional.
+      "summary": 1–2 short sentences (<=255 chars).
+      "licenseSuggestion" is optional; if context is insufficient or generic, return null.
+      Never invent facts; use only the provided input.
+      Do not copy sentences from examples; tailor wording to the input.
+      Echo back the same "trackId".
       `;
 
-    const examples = `
-      Examples of valid JSON outputs:
+    const FEW_SHOT_EXAMPLES = `
+      Examples of valid outputs (the structure will be enforced by schema):
       {"trackId":"abc-123","summary":"This song conveys an epic and melancholic tone.","licenseSuggestion":"An exclusive 6-month contract for streaming use is recommended."}
       {"trackId":"xyz-456","summary":"Soft piano underscoring the emotional dialogue."}
       `;
 
-    const user = `
-      Analyze the following JSON describing a movie track. 
-      Echo back the given trackId unchanged. 
-      Follow the rules above.
+    const USER_PROMPT = `
+      Analyze the JSON for a movie track (with song, scene, and movie info) and produce "summary" and an optional "licenseSuggestion".
 
-      ${examples}
+      Decision criteria:
+      - Provide a licenseSuggestion only if the context suggests a clear initial licensing approach (e.g., exclusivity, short term for streaming, background underscore).
+      - If input is sparse, ambiguous, or generic, set "licenseSuggestion" to null.
+
+      Do not copy wording from the examples; adapt to the input.
+
+      Examples:
+
+      ${FEW_SHOT_EXAMPLES}
 
       INPUT:
       ${JSON.stringify(context)}
@@ -194,9 +200,14 @@ export class TrackAIInsightsService {
           schema: {
             type: 'object',
             properties: {
-              trackId: { type: 'string' },
-              summary: { type: 'string', maxLength: 255 },
-              licenseSuggestion: { type: 'string', maxLength: 255 },
+              trackId: { type: 'string', minLength: 1 },
+              summary: { type: 'string', minLength: 1, maxLength: 255 },
+              licenseSuggestion: {
+                oneOf: [
+                  { type: 'string', minLength: 1, maxLength: 255 },
+                  { type: 'null' },
+                ],
+              },
             },
             required: ['trackId', 'summary'],
             additionalProperties: false,
@@ -204,8 +215,8 @@ export class TrackAIInsightsService {
         },
       },
       messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: user },
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: USER_PROMPT },
       ],
     });
 
