@@ -160,6 +160,23 @@ As an extension to the challenge, I added AI-powered insights for **tracks** usi
 
 ## 🚀 Setup
 
+### Environment Variables
+
+The project requires an **OpenAI API key** to generate AI insights.  
+An `.env.example` file is provided — copy it and set your own key:
+
+```bash
+cp .env.example .env
+```
+
+Then edit .env and add your OpenAI API key:
+
+```bash
+OPENAI_API_KEY=sk-...
+```
+
+⚠️ Do not commit .env with real secrets. Only .env.example should be versioned.
+
 1. **Build & start services**
     
     `docker compose up --build`
@@ -184,5 +201,5 @@ As an extension to the challenge, I added AI-powered insights for **tracks** usi
 ---
 
 ## 🗒️ Notes
-- The `.env` file is already included in the repository root.
+- An `.env.example` file is included. Copy it to `.env` and set your OpenAI API key.
 - Database data is persisted in the `db_data` volume.
