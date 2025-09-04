@@ -1,0 +1,1 @@
+export const GENERATE_INSIGHTS_BASE_URL = `${process.env.NEXT_PUBLIC_API_HTTP_URL}/tracks/insights/generate`;

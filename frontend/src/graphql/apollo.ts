@@ -3,8 +3,8 @@ import { GraphQLWsLink } from '@apollo/client/link/subscriptions';
 import { createClient } from 'graphql-ws';
 import { getMainDefinition } from '@apollo/client/utilities';
 
-const httpUrl = process.env.NEXT_PUBLIC_API_HTTP_URL;
-const wsUrl = process.env.NEXT_PUBLIC_API_WS_URL;
+const httpUrl = `${process.env.NEXT_PUBLIC_API_HTTP_URL}/graphql`;
+const wsUrl = `${process.env.NEXT_PUBLIC_API_WS_URL}/graphql`;
 
 const httpLink = new HttpLink({
   uri: httpUrl

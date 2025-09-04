@@ -14,6 +14,7 @@ export enum MovieEventKind {
   TRACK_STATUS_UPDATED = 'TRACK_STATUS_UPDATED',
   TRACK_SONG_SET = 'TRACK_SONG_SET',
   SCENE_CREATED = 'SCENE_CREATED',
+  TRACK_INSIGHTS_CREATED = 'TRACK_INSIGHTS_CREATED',
 }
 registerEnumType(MovieEventKind, { name: 'MovieEventKind' });
 

@@ -1,6 +1,7 @@
+import { PubSub } from 'graphql-subscriptions';
 import OpenAI from 'openai';
 import { Repository } from 'typeorm';
-import { Injectable, Inject, Logger } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { TrackService } from '../track/track.service';
 import { Track } from '../track/track.entity';
@@ -8,6 +9,8 @@ import { Song } from '../song/song.entity';
 import { Scene } from '../scene/scene.entity';
 import { Movie } from '../movie/movie.entity';
 import { TrackAIInsights } from './track-ai-insights.entity';
+import { PUB_SUB } from 'src/realtime/pubsub.token';
+import { MovieEventKind, emitMovieEvent } from 'src/realtime/events';
 
 export type TrackInsightsReport = {
   processed: number;
@@ -29,23 +32,73 @@ type TrackInsightsPayload = {
   licenseSuggestion?: string | null;
 };
 
+const AI_PROVIDER = 'openai';
 export const OPENAI_CLIENT = 'OPENAI_CLIENT';
+const OPENAI_MODEL = 'gpt-4o-mini';
+const OPENAI_TEMPERATURE = 0.2;
+const OPENAI_RESPONSE_TYPE = 'json_object';
 
 @Injectable()
 export class TrackAIInsightsService {
-  private readonly logger = new Logger(TrackAIInsightsService.name);
-  private readonly MODEL = 'gpt-4o-mini' as const;
-
   constructor(
-    private readonly tracks: TrackService,
+    private readonly trackService: TrackService,
     @InjectRepository(TrackAIInsights)
     private readonly trackInsightsRepo: Repository<TrackAIInsights>,
     @Inject(OPENAI_CLIENT) private readonly openai: OpenAI,
+    @Inject(PUB_SUB) private readonly pubSub: PubSub,
   ) {}
 
-  async generateMissingInsights(): Promise<TrackInsightsReport> {
-    const tracks = await this.tracks.findWithoutInsights();
-    return this.generateInsightsForTracks(tracks);
+  async generateMissingInsightsForAll(): Promise<TrackInsightsReport> {
+    const tracks = await this.trackService.findEligibleTracksForInsights();
+    const report = await this.generateInsightsForTracks(tracks);
+
+    if (report.created > 0) {
+      const movieIds = Array.from(new Set(tracks.map((t) => t.scene.movie.id)));
+
+      for (const movieId of movieIds) {
+        await emitMovieEvent(
+          this.pubSub,
+          movieId,
+          MovieEventKind.TRACK_INSIGHTS_CREATED,
+        );
+      }
+    }
+
+    return report;
+  }
+
+  async generateMissingInsightsForMovie(
+    movieId: string,
+  ): Promise<TrackInsightsReport> {
+    const tracks =
+      await this.trackService.findEligibleTracksForInsightsByMovie(movieId);
+    const report = await this.generateInsightsForTracks(tracks);
+
+    if (report.created > 0) {
+      await emitMovieEvent(
+        this.pubSub,
+        movieId,
+        MovieEventKind.TRACK_INSIGHTS_CREATED,
+      );
+    }
+
+    return report;
+  }
+
+  async generateMissingInsightsForTrack(
+    trackId: string,
+  ): Promise<TrackInsightsReport> {
+    const track = await this.trackService.findEligibleTrackForInsights(trackId);
+    if (!track) {
+      return { processed: 0, created: 0, errors: [] };
+    }
+    const report = await this.generateInsightsForTracks([track]);
+    await emitMovieEvent(
+      this.pubSub,
+      track.scene.movie.id,
+      MovieEventKind.TRACK_INSIGHTS_CREATED,
+    );
+    return report;
   }
 
   async generateInsightsForTracks(
@@ -62,8 +115,7 @@ export class TrackAIInsightsService {
         created += 1;
       } catch (e) {
         const reason = e instanceof Error ? e.message : String(e);
-        this.logger.warn(`Insight failed for track ${track.id}: ${reason}`);
-        errors.push({ trackId: track.id, reason: String(e) });
+        errors.push({ trackId: track.id, reason });
       }
     }
     return { processed: tracks.length, created, errors };
@@ -125,9 +177,9 @@ export class TrackAIInsightsService {
       `;
 
     const resp = await this.openai.chat.completions.create({
-      model: this.MODEL,
-      temperature: 0.2,
-      response_format: { type: 'json_object' },
+      model: OPENAI_MODEL,
+      temperature: OPENAI_TEMPERATURE,
+      response_format: { type: OPENAI_RESPONSE_TYPE },
       messages: [
         { role: 'system', content: system },
         { role: 'user', content: user },
@@ -156,8 +208,8 @@ export class TrackAIInsightsService {
       track: { id: trackInsightsPayload.trackId },
       summary: trackInsightsPayload.summary,
       licenseSuggestion: trackInsightsPayload.licenseSuggestion,
-      provider: 'openai',
-      model: this.MODEL,
+      provider: AI_PROVIDER,
+      model: OPENAI_MODEL,
     });
     await this.trackInsightsRepo.save(trackInsight);
   }

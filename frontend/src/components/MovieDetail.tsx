@@ -9,6 +9,7 @@ import type { Movie, Song } from '@/types';
 import CreateTrackForm from '@/components/CreateTrackForm';
 import CreateSceneForm from '@/components/CreateSceneForm';
 import Toast from '@/components/Toast';
+import { GENERATE_INSIGHTS_BASE_URL } from '@/utils';
 
 type GetMovieVars = { id: string };
 type GetMovieData = { movie: Movie | null };
@@ -82,6 +83,10 @@ export default function MovieDetail({ id }: { id: string }) {
   // --- scene creation UI state ---
   const [creatingScene, setCreatingScene] = useState(false);
 
+  // --- local loading flags for AI generation (movie / per-track) ---
+  const [loadingInsightsForMovie, setLoadingInsightsForMovie] = useState(false);
+  const [loadingInsightsForTrack, setLoadingInsightsForTrack] = useState<string | null>(null);
+
   if (loading) return <div className="p-6">Loading...</div>;
   if (error)   return <div className="p-6 text-red-600">{error.message}</div>;
   if (!movieData?.movie) return <div className="p-6">Movie not found</div>;
@@ -103,6 +108,32 @@ export default function MovieDetail({ id }: { id: string }) {
     setSelectedStatus(null);
   }
 
+  async function generateInsightsForMovie(movieId: string) {
+    try {
+      setLoadingInsightsForMovie(true);
+      const res = await fetch(`${GENERATE_INSIGHTS_BASE_URL}/for-movie/${movieId}`, { method: 'POST' });
+      if (!res.ok) throw new Error(`Failed: ${res.status}`);
+    } catch (e) {
+      const reason = e instanceof Error ? e.message : String(e);
+      setToastMsg(reason || 'Failed generating AI insights for movie');
+    } finally {
+      setLoadingInsightsForMovie(false);
+    }
+  }
+
+   async function generateInsightsForTrack(trackId: string) {
+    try {
+      setLoadingInsightsForTrack(trackId);
+      const res = await fetch(`${GENERATE_INSIGHTS_BASE_URL}/for-track/${trackId}`, { method: 'POST' });
+      if (!res.ok) throw new Error(`Failed: ${res.status}`);
+    } catch (e) {
+      const reason = e instanceof Error ? e.message : String(e);
+      setToastMsg(reason || 'Failed generating AI insights for track');
+    } finally {
+      setLoadingInsightsForTrack(null);
+    }
+  }
+
   return (
     <main className="p-6 max-w-5xl mx-auto space-y-6">
       {toastMsg && (
@@ -112,9 +143,21 @@ export default function MovieDetail({ id }: { id: string }) {
       <header>
         <h1 className="text-2xl font-bold" data-testid="movie-title">{movie.title}</h1>
         <p className="text-gray-600">{movie.description ?? 'No description'}</p>
+
+        {/* --- Generate AI insights for the whole movie --- */}
+        <div className="mt-2">
+          <button
+            className="text-xs px-2 py-1 rounded border disabled:opacity-60"
+            onClick={() => generateInsightsForMovie(movie.id)}
+            disabled={loadingInsightsForMovie || loadingInsightsForTrack !== null}
+            title="Generate AI insights for all tracks in this movie that have a song and no insights yet."
+          >
+            {loadingInsightsForMovie ? 'Generating...' : 'Generate AI insights for movie tracks'}
+          </button>
+        </div>
       </header>
 
-      <div className="mt-3">
+      <div className="mt-2">
         {creatingScene ? (
           <CreateSceneForm
             movieId={movie.id}
@@ -177,26 +220,33 @@ export default function MovieDetail({ id }: { id: string }) {
                   <div className="mt-1 max-w-[36rem] text-xs text-gray-700">
 
                   {/* --- AI Insights --- */}
-                  <div className="mt-3 max-w-[36rem] space-y-2">
-                    {t.trackAIInsights ? (
-                      <>
-                        <h3 className="text-sm font-semibold text-gray-700">AI Insights</h3>
-                        
-                        <p className="text-sm text-gray-800 leading-relaxed">
-                          {t.trackAIInsights.summary}
-                        </p>
-
-                        {t.trackAIInsights.licenseSuggestion && (
-                          <p className="text-xs text-gray-600">
-                            💡 <span className="font-semibold">Suggestion:</span>{' '}
-                            {t.trackAIInsights.licenseSuggestion}
+                  {t.song && (
+                    <div className="mt-3 max-w-[36rem] space-y-2">
+                      {t.trackAIInsights ? (
+                        <>
+                          <h3 className="text-sm font-semibold text-gray-700">AI Insights</h3>
+                          <p className="text-sm text-gray-800 leading-relaxed">
+                            {t.trackAIInsights.summary}
                           </p>
-                        )}
-                      </>
-                    ) : (
-                      <p className="text-xs text-gray-400 italic">No AI insight yet.</p>
-                    )}
-                  </div>
+                          {t.trackAIInsights.licenseSuggestion && (
+                            <p className="text-xs text-gray-600">
+                              💡 <span className="font-semibold">Suggestion:</span>{' '}
+                              {t.trackAIInsights.licenseSuggestion}
+                            </p>
+                          )}
+                        </>
+                      ) : (
+                        <button
+                          className="text-xs px-2 py-1 rounded border disabled:opacity-60"
+                          onClick={() => generateInsightsForTrack(t.id)}
+                          disabled={loadingInsightsForMovie || loadingInsightsForTrack === t.id}
+                          title="Generate AI insights for this track"
+                        >
+                          {loadingInsightsForTrack === t.id ? 'Generating...' : 'Generate AI Insights'}
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
                   <div className="flex items-center gap-2 shrink-0">
                     

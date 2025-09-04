@@ -8,6 +8,7 @@ import { GET_MOVIES, ALL_MOVIES_EVENTS } from '@/graphql/movies';
 import type { MovieSummary } from '@/types';
 import StatusPill from '@/components/StatusPill';
 import Toast from '@/components/Toast';
+import { GENERATE_INSIGHTS_BASE_URL } from '@/utils';
 
 type GetMoviesData = { movies: MovieSummary[] };
 
@@ -33,6 +34,7 @@ function formatEventMessage(kind: string, at: Date, movieTitle: string): string 
 export default function MovieList() {
   const { data: moviesData, loading, error, refetch } = useQuery<GetMoviesData>(GET_MOVIES);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [loadingInsights, setLoadingInsights] = useState(false);
 
   // NOTE: Currently we trigger a full refetch of the movies list every time
   // `ALL_MOVIES_EVENTS` fires (any track update in any movie).
@@ -51,6 +53,20 @@ export default function MovieList() {
     },
     onError: (e) => console.error('allMoviesEvents sub error', e),
   });
+
+  async function generateInsightsForAllTracks() {
+    try {
+      setLoadingInsights(true);
+      const res = await fetch(GENERATE_INSIGHTS_BASE_URL, { method: 'POST' });
+      if (!res.ok) throw new Error(`Failed: ${res.status}`);
+      setToastMsg('✨ AI insights generation triggered for all eligible tracks.');
+    } catch (e) {
+      const reason = e instanceof Error ? e.message : String(e);
+      setToastMsg(reason || 'Failed generating AI insights');
+    } finally {
+      setLoadingInsights(false);
+    }
+  }
   
   if (loading) {
     return <div>Loading...</div>;
@@ -76,6 +92,21 @@ export default function MovieList() {
     {toastMsg && (
       <Toast message={toastMsg} onClose={() => setToastMsg(null)} />
     )}
+
+    {/* --- Generate AI Insights Button --- */}
+    <div className="col-span-full mb-2 flex justify-start">
+      <button
+        className="text-xs px-2 py-1 rounded border bg-white hover:bg-slate-50 transition disabled:opacity-60"
+        onClick={generateInsightsForAllTracks}
+        disabled={loadingInsights}
+        title="Generate AI insights for every track that has a song and no insights yet."
+        data-testid="ai-generate-all-tracks"
+      >
+        {loadingInsights ? 'Generating...' : 'Generate AI insights for all tracks'}
+      </button>
+    </div>
+
+    {/* --- Movies List --- */}
     {/* TODO: add search, filters, pagination */}
     {movies.map((movie) => (
       <div key={movie.id} className="p-4 border rounded shadow" data-testid={`movie-item-${movie.id}`}>
