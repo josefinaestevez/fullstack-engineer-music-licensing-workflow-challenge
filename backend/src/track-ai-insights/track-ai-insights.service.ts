@@ -1,6 +1,7 @@
 import { PubSub } from 'graphql-subscriptions';
 import OpenAI from 'openai';
 import { Repository } from 'typeorm';
+import { z } from 'zod';
 import { Injectable, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { TrackService } from '../track/track.service';
@@ -26,14 +27,16 @@ type TrackInsightsContext = {
   movie: Pick<Movie, 'title' | 'description'>;
 };
 
-type TrackInsightsPayload = {
-  trackId: string;
-  summary: string;
-  licenseSuggestion?: string | null;
-};
+const TrackInsightsSchema = z.object({
+  trackId: z.string().min(1),
+  summary: z.string().min(1).max(255),
+  licenseSuggestion: z.string().trim().min(1).max(255).optional().nullable(),
+});
 
-const AI_PROVIDER = 'openai';
+type TrackInsightsPayload = z.infer<typeof TrackInsightsSchema>;
+
 export const OPENAI_CLIENT = 'OPENAI_CLIENT';
+const AI_PROVIDER = 'openai';
 const OPENAI_MODEL = 'gpt-4o-mini';
 const OPENAI_TEMPERATURE = 0.2;
 const OPENAI_RESPONSE_TYPE = 'json_object';
@@ -176,7 +179,7 @@ export class TrackAIInsightsService {
       ${JSON.stringify(context)}
       `;
 
-    const resp = await this.openai.chat.completions.create({
+    const response = await this.openai.chat.completions.create({
       model: OPENAI_MODEL,
       temperature: OPENAI_TEMPERATURE,
       response_format: { type: OPENAI_RESPONSE_TYPE },
@@ -186,18 +189,39 @@ export class TrackAIInsightsService {
       ],
     });
 
-    const text = resp.choices?.[0]?.message?.content ?? '{}';
-    const parsed = JSON.parse(text) as TrackInsightsPayload;
+    return this.validateAndParseOpenAIResponse(response, context.trackId);
+  }
 
-    const suggestion =
-      parsed.licenseSuggestion && String(parsed.licenseSuggestion).trim() !== ''
-        ? String(parsed.licenseSuggestion).slice(0, 255)
-        : null;
+  private validateAndParseOpenAIResponse(
+    response: OpenAI.Chat.Completions.ChatCompletion,
+    expectedTrackId: string,
+  ): TrackInsightsPayload {
+    const text = response.choices?.[0]?.message?.content ?? '{}';
+    const raw: unknown = JSON.parse(text);
+
+    const result = TrackInsightsSchema.safeParse(raw);
+    if (!result.success) {
+      const details = result.error.issues
+        .map((i) => `${i.path.join('.')}: ${i.message}`)
+        .join(', ');
+      throw new Error(`Invalid LLM output: ${details}`);
+    }
+
+    const parsed = result.data;
+
+    if (parsed.trackId !== expectedTrackId) {
+      throw new Error(
+        `trackId mismatch (expected ${expectedTrackId}, got ${parsed.trackId})`,
+      );
+    }
 
     return {
       trackId: parsed.trackId,
       summary: parsed.summary,
-      licenseSuggestion: suggestion,
+      licenseSuggestion:
+        parsed.licenseSuggestion && parsed.licenseSuggestion.trim() !== ''
+          ? parsed.licenseSuggestion
+          : null,
     };
   }
 
