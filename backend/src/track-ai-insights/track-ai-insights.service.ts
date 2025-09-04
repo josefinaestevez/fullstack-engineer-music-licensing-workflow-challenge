@@ -96,11 +96,15 @@ export class TrackAIInsightsService {
       return { processed: 0, created: 0, errors: [] };
     }
     const report = await this.generateInsightsForTracks([track]);
-    await emitMovieEvent(
-      this.pubSub,
-      track.scene.movie.id,
-      MovieEventKind.TRACK_INSIGHTS_CREATED,
-    );
+
+    if (report.created > 0) {
+      await emitMovieEvent(
+        this.pubSub,
+        track.scene.movie.id,
+        MovieEventKind.TRACK_INSIGHTS_CREATED,
+      );
+    }
+
     return report;
   }
 
@@ -118,6 +122,7 @@ export class TrackAIInsightsService {
         created += 1;
       } catch (e) {
         const reason = e instanceof Error ? e.message : String(e);
+        console.error(reason);
         errors.push({ trackId: track.id, reason });
       }
     }

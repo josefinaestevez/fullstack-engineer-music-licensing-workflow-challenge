@@ -109,6 +109,10 @@ UI tests depend on the seeded movies **Inception** and **The Dark Knight**.
 
 As an extension to the challenge, I added AI-powered insights for **tracks** using the OpenAI API.
 
+⚠️ To test the GenAI extension you need an OpenAI API key.
+The setup steps (see **Environment Variables** under **🚀 Setup**) explain how to configure it. 
+If you don’t have one, contact me and I can provide a temporary key for reviewing purposes.
+
 #### What It Does
 - **New REST endpoints**:
   - `POST /tracks/insights/generate/all` → generate insights for all eligible tracks (those without insights yet).
