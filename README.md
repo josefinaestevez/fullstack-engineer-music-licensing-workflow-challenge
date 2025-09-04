@@ -105,6 +105,60 @@ UI tests depend on the seeded movies **Inception** and **The Dark Knight**.
 - **Indexes**: No extra indexes were added because the dataset is small and the focus was on functionality. 
 - **Entities and GraphQL Types** - For simplicity, this project reuses the same classes for both. If the domain evolves (e.g., entity shape diverges from API shape), adding dedicated DTOs and mappers would improve maintainability and safety.
 
+### 🔮 GenAI Extension – Track AI Insights
+
+As an extension to the challenge, I added AI-powered insights for **tracks** using the OpenAI API.
+
+#### What It Does
+- **New REST endpoints**:
+  - `POST /tracks/insights/generate/all` → generate insights for all eligible tracks (those without insights yet).
+  - `POST /tracks/insights/generate/for-movie/:movieId` → same, filtered by movie.
+  - `POST /tracks/insights/generate/for-track/:trackId` → generate insights for a specific track.
+- **Persistence**: each insight stores `summary`, an optional `licenseSuggestion`, along with `provider` and `model`.
+- **Events**: emits a `TRACK_INSIGHTS_CREATED` event per movie so the frontend can update in real-time.
+- **Validation** of the LLM output using **Zod**:
+  - `trackId` (string, required, must match the requested track)
+  - `summary` (string, required, max 255 chars)
+  - `licenseSuggestion` (string, optional, max 255 chars, normalized to `null` if missing)
+
+#### Tech Decisions
+- Used OpenAI official SDK (gpt-4o-mini) with response_format: json_object. `gpt-4o-mini` is the recommended lightweight option in the 4o family, optimized for cost and latency.
+- Applied Zod validation inside the service to ensure data consistency before saving.
+- If validation fails, the track is skipped and reported in the errors[] list.
+- No concurrency or retry logic implemented to keep the extension simple.
+
+#### Future Improvements
+
+1. More validations:
+    - Validate `trackId` as UUID.
+    - Add stricter normalization (trim strings, enforce formats).
+    - Enforce DB uniqueness with upsert to guarantee idempotency.
+2. Concurrency:
+    - Process tracks in parallel with a bounded pool (e.g. 3 at a time).
+3. Workers / Async jobs:
+    - Offload generation to a job queue (e.g., BullMQ + Redis).
+    - Endpoints return immediately, jobs run in the background.
+    - Useful for retries, backoff, and not blocking HTTP.
+    - Run after track / song association.
+4. Scheduled jobs (CRON):
+    - Run daily or periodic jobs to auto-generate insights (e.g., every night at 03:00).
+    - Removes the need for manual frontend buttons.
+5. Timeouts & observability:
+    - Per-request timeouts (e.g., 5s).
+    - Structured logging and metrics (processed/created/errors).
+6. Use `json_schema` response format:
+    - Enforce exact schema alignment directly at the OpenAI API level, reducing invalid outputs.
+
+#### Rate limiting considerations
+- Each request to the OpenAI API consumes quota and is subject to **rate limits**.
+- The current implementation is sequential, which avoids hitting limits but can be slower.
+- In a production setup, metrics and monitoring around **tokens consumed** and **rate limit errors** would be essential.
+- Possible improvements:
+    - **Bounded concurrency** (e.g., 3 requests at a time) to balance throughput vs. rate limits.
+    - **Batching multiple tracks per request** to reduce calls, though this increases token usage, makes validation more complex, and risks losing a whole batch if the response is malformed.
+    - **Workers with retries/backoff** for more robust error handling without blocking HTTP.
+
+
 ## 📋 Requirements
 - Docker & Docker Compose
 
