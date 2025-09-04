@@ -122,9 +122,10 @@ As an extension to the challenge, I added AI-powered insights for **tracks** usi
   - `licenseSuggestion` (string, optional, max 255 chars, normalized to `null` if missing)
 
 #### Tech Decisions
-- Used OpenAI official SDK (gpt-4o-mini) with response_format: json_object. `gpt-4o-mini` is the recommended lightweight option in the 4o family, optimized for cost and latency.
-- Applied Zod validation inside the service to ensure data consistency before saving.
-- If validation fails, the track is skipped and reported in the errors[] list.
+- Chose gpt-4o-mini for cost-efficiency and low latency. The task requires only short structured outputs (summaries + optional suggestions).
+- Used `json_schema` response format so the model is constrained to output only valid JSON according to the schema (no extra text or malformed fields).
+- Applied Zod validation as a final guardrail before persisting, ensuring consistency and giving meaningful error reporting.
+    - ⚠️ This means the schema is defined **twice** (once for OpenAI, once in Zod), but I prefer this duplication: it enforces correctness at two layers and keeps both the prompt contract and the runtime validation explicit.
 - No concurrency or retry logic implemented to keep the extension simple.
 
 #### Future Improvements
@@ -143,20 +144,13 @@ As an extension to the challenge, I added AI-powered insights for **tracks** usi
 4. Scheduled jobs (CRON):
     - Run daily or periodic jobs to auto-generate insights (e.g., every night at 03:00).
     - Removes the need for manual frontend buttons.
-5. Timeouts & observability:
+5. Rate limiting strategies
+    - Introduce bounded concurrency to balance throughput vs. API limits.
+    - Consider batching multiple tracks per request (trade-off: higher token usage, harder validation).
+    - Use workers with retries/backoff to handle 429 Too Many Requests gracefully.
+5. Observability:
     - Per-request timeouts (e.g., 5s).
     - Structured logging and metrics (processed/created/errors).
-6. Use `json_schema` response format:
-    - Enforce exact schema alignment directly at the OpenAI API level, reducing invalid outputs.
-
-#### Rate limiting considerations
-- Each request to the OpenAI API consumes quota and is subject to **rate limits**.
-- The current implementation is sequential, which avoids hitting limits but can be slower.
-- In a production setup, metrics and monitoring around **tokens consumed** and **rate limit errors** would be essential.
-- Possible improvements:
-    - **Bounded concurrency** (e.g., 3 requests at a time) to balance throughput vs. rate limits.
-    - **Batching multiple tracks per request** to reduce calls, though this increases token usage, makes validation more complex, and risks losing a whole batch if the response is malformed.
-    - **Workers with retries/backoff** for more robust error handling without blocking HTTP.
 
 
 ## 📋 Requirements

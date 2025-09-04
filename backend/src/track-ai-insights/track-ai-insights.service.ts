@@ -39,7 +39,7 @@ export const OPENAI_CLIENT = 'OPENAI_CLIENT';
 const AI_PROVIDER = 'openai';
 const OPENAI_MODEL = 'gpt-4o-mini';
 const OPENAI_TEMPERATURE = 0.2;
-const OPENAI_RESPONSE_TYPE = 'json_object';
+const OPENAI_RESPONSE_TYPE = 'json_schema';
 
 @Injectable()
 export class TrackAIInsightsService {
@@ -182,7 +182,22 @@ export class TrackAIInsightsService {
     const response = await this.openai.chat.completions.create({
       model: OPENAI_MODEL,
       temperature: OPENAI_TEMPERATURE,
-      response_format: { type: OPENAI_RESPONSE_TYPE },
+      response_format: {
+        type: OPENAI_RESPONSE_TYPE,
+        json_schema: {
+          name: 'TrackInsights',
+          schema: {
+            type: 'object',
+            properties: {
+              trackId: { type: 'string' },
+              summary: { type: 'string', maxLength: 255 },
+              licenseSuggestion: { type: 'string', maxLength: 255 },
+            },
+            required: ['trackId', 'summary'],
+            additionalProperties: false,
+          },
+        },
+      },
       messages: [
         { role: 'system', content: system },
         { role: 'user', content: user },
